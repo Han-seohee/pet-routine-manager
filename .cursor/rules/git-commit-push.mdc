@@ -1,0 +1,80 @@
+---
+description: Git commit and push conventions (Conventional Commits)
+alwaysApply: true
+---
+
+# Git Commit & Push Rules
+
+## Commit Message Format
+
+All commits use Conventional Commits:
+
+```text
+<type>: <description>
+```
+
+Allowed types: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `build`, `ci`
+
+## Type Guidelines
+
+- Journal / README / requirements docs → `docs` (never `feat` for journal)
+- API / frontend / backend features → `feat`
+- Bug fixes → `fix`
+- Code structure improvements → `refactor`
+- Tests → `test`
+- Package install / project config → `chore` or `build`
+- GitHub Actions / deploy automation → `ci`
+
+## Description
+
+Keep messages short and clear. Good: `docs: add day 01 journal`, `feat: add pet CRUD`. Avoid vague messages like `update`, `fix`, `작업완료`, `final`.
+
+Do not list multiple unrelated tasks in one message.
+
+## One Commit = One Meaningful Change
+
+Split unrelated changes into separate commits. Strongly related docs may be grouped (e.g. `docs: add project kickoff and requirements`).
+
+## Journal vs Commit
+
+Journal records Context, Decision, Outcome, Next. Commit messages describe only what changed in code/docs.
+
+Example: journal explains DB design rationale → commit is `feat: add initial prisma schema`.
+
+## Pre-Commit Checklist
+
+1. `git status`
+2. Review changed files and diffs
+3. Stage only intended files
+4. Choose correct type
+5. Write commit message
+
+Never commit: `.env`, `.env.local`, `.env.*.local` (check repo tracking state first).
+
+## Commit & Push Workflow
+
+When the user asks to commit and push (e.g. "규칙에 맞는 커밋 메시지를 작성한 뒤 commit과 push까지 진행해주세요"), proceed without extra confirmation:
+
+1. `git status` → review changes → choose type → stage → commit
+2. Check current branch and remote
+3. Push to configured remote branch (do not change remote URL or branch)
+4. Verify push result
+
+## Ask Before Committing When
+
+- Intent is unclear
+- Unrelated changes are mixed together
+- Destructive/hard-to-revert changes are included
+- Sensitive files are staged
+- Branch or remote is unexpected
+- Amend or force push would be required
+
+## Post-Push Report
+
+```
+Commit: <commit message>
+Branch: <branch>
+Push: 완료
+```
+
+Include commit hash when possible.
