@@ -1,18 +1,24 @@
-type RequestOptions = Omit<RequestInit, "method" | "body">;
+import { buildApiUrl } from "@/lib/api/config";
+import { getAccessToken } from "@/lib/auth/session";
 
-function getBaseUrl(): string {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+export type RequestOptions = Omit<RequestInit, "method" | "body"> & {
+  /**
+   * When true, attach `Authorization: Bearer <access-token>` from the
+   * HttpOnly session cookie. Public endpoints must omit this or pass false.
+   */
+  auth?: boolean;
+};
 
-  if (!baseUrl) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL is not defined");
+export class ApiError extends Error {
+  readonly status: number;
+  readonly statusText: string;
+
+  constructor(status: number, statusText: string) {
+    super(`API request failed: ${status} ${statusText}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.statusText = statusText;
   }
-
-  return baseUrl.replace(/\/$/, "");
-}
-
-function buildUrl(path: string): string {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${getBaseUrl()}${normalizedPath}`;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -25,22 +31,40 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return undefined as T;
 }
 
+async function buildHeaders(
+  headersInit: HeadersInit | undefined,
+  auth: boolean | undefined,
+): Promise<Headers> {
+  const headers = new Headers(headersInit);
+  headers.set("Accept", "application/json");
+
+  if (auth) {
+    const accessToken = await getAccessToken();
+
+    if (!accessToken) {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  return headers;
+}
+
 async function request<T>(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit & { auth?: boolean } = {},
 ): Promise<T> {
-  const response = await fetch(buildUrl(path), {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      ...options.headers,
-    },
+  const { auth, headers, ...fetchOptions } = options;
+
+  const response = await fetch(buildApiUrl(path), {
+    ...fetchOptions,
+    headers: await buildHeaders(headers, auth),
+    cache: "no-store",
   });
 
   if (!response.ok) {
-    throw new Error(
-      `API request failed: ${response.status} ${response.statusText}`,
-    );
+    throw new ApiError(response.status, response.statusText);
   }
 
   return parseResponse<T>(response);
@@ -52,14 +76,16 @@ function jsonRequest<T>(
   body?: unknown,
   options: RequestOptions = {},
 ): Promise<T> {
-  const headers = new Headers(options.headers);
+  const { headers: headersInit, auth, ...rest } = options;
+  const headers = new Headers(headersInit);
 
   if (body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
 
   return request<T>(path, {
-    ...options,
+    ...rest,
+    auth,
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
