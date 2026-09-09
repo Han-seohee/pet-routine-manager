@@ -1,7 +1,19 @@
-import { NextResponse } from "next/server";
-import { clearAccessTokenCookie } from "@/lib/auth/session";
+import { NextRequest, NextResponse } from "next/server";
+import { logoutRefreshToken } from "@/lib/api/auth";
+import { REFRESH_TOKEN_COOKIE } from "@/lib/auth/constants";
+import { clearAuthCookies } from "@/lib/auth/session";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
+
+  if (refreshToken) {
+    try {
+      await logoutRefreshToken(refreshToken);
+    } catch {
+      // Local session still ends if Backend logout is unavailable.
+    }
+  }
+
   const response = NextResponse.redirect(new URL("/login", request.url));
-  return clearAccessTokenCookie(response);
+  return clearAuthCookies(response);
 }

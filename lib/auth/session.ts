@@ -3,16 +3,39 @@ import type { NextResponse } from "next/server";
 import {
   ACCESS_TOKEN_COOKIE,
   ACCESS_TOKEN_MAX_AGE_SECONDS,
+  REFRESH_TOKEN_COOKIE,
+  REFRESH_TOKEN_MAX_AGE_SECONDS,
 } from "@/lib/auth/constants";
 
-export function getAccessTokenCookieOptions() {
+function getTokenCookieBaseOptions() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: ACCESS_TOKEN_MAX_AGE_SECONDS,
   };
+}
+
+function getTokenCookieOptions(maxAge: number) {
+  return {
+    ...getTokenCookieBaseOptions(),
+    maxAge,
+  };
+}
+
+function getExpiredTokenCookieOptions() {
+  return {
+    ...getTokenCookieBaseOptions(),
+    maxAge: 0,
+  };
+}
+
+export function getAccessTokenCookieOptions() {
+  return getTokenCookieOptions(ACCESS_TOKEN_MAX_AGE_SECONDS);
+}
+
+export function getRefreshTokenCookieOptions() {
+  return getTokenCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS);
 }
 
 export async function getAccessToken(): Promise<string | undefined> {
@@ -41,13 +64,36 @@ export function applyAccessTokenCookie(
   return response;
 }
 
+export function applyRefreshTokenCookie(
+  response: NextResponse,
+  refreshToken: string,
+): NextResponse {
+  response.cookies.set(
+    REFRESH_TOKEN_COOKIE,
+    refreshToken,
+    getRefreshTokenCookieOptions(),
+  );
+  return response;
+}
+
 export async function clearAccessToken(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(ACCESS_TOKEN_COOKIE);
 }
 
 export function clearAccessTokenCookie(response: NextResponse): NextResponse {
-  response.cookies.delete(ACCESS_TOKEN_COOKIE);
+  response.cookies.set(ACCESS_TOKEN_COOKIE, "", getExpiredTokenCookieOptions());
+  return response;
+}
+
+export function clearRefreshTokenCookie(response: NextResponse): NextResponse {
+  response.cookies.set(REFRESH_TOKEN_COOKIE, "", getExpiredTokenCookieOptions());
+  return response;
+}
+
+export function clearAuthCookies(response: NextResponse): NextResponse {
+  clearAccessTokenCookie(response);
+  clearRefreshTokenCookie(response);
   return response;
 }
 

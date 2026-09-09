@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/api/auth";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/logout-button";
 
 export default async function ProtectedLayout({
   children,
@@ -20,13 +19,13 @@ export default async function ProtectedLayout({
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
-        <p className="truncate text-sm text-muted-foreground">userId: {userId}</p>
-        <a
-          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          href="/api/auth/logout"
-        >
-          로그아웃
-        </a>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold tracking-tight">하루멍냥</p>
+          <p className="truncate text-xs text-muted-foreground">
+            userId: {userId}
+          </p>
+        </div>
+        <LogoutButton />
       </header>
       {children}
     </div>

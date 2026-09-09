@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { exchangeAuthorizationCode } from "@/lib/api/auth";
-import { applyAccessTokenCookie } from "@/lib/auth/session";
+import {
+  applyAccessTokenCookie,
+  applyRefreshTokenCookie,
+} from "@/lib/auth/session";
 
 function redirectToLogin(origin: string) {
   return NextResponse.redirect(new URL("/login", origin));
@@ -15,9 +18,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { accessToken } = await exchangeAuthorizationCode(code);
+    const { accessToken, refreshToken } = await exchangeAuthorizationCode(code);
     const response = NextResponse.redirect(new URL("/family", url.origin));
-    return applyAccessTokenCookie(response, accessToken);
+    applyAccessTokenCookie(response, accessToken);
+
+    if (refreshToken) {
+      applyRefreshTokenCookie(response, refreshToken);
+    }
+
+    return response;
   } catch {
     return redirectToLogin(url.origin);
   }
