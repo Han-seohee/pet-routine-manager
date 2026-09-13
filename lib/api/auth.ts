@@ -22,6 +22,11 @@ export type AccessTokenResponse = {
   accessToken: string;
 };
 
+export type AuthTokensResponse = {
+  accessToken: string;
+  refreshToken: string;
+};
+
 export type TokenExchangeResponse = AccessTokenResponse & {
   refreshToken?: string;
 };
@@ -56,6 +61,36 @@ async function parseAccessTokenResponse(
   }
 
   return { accessToken: data.accessToken };
+}
+
+function isAuthTokensResponse(value: unknown): value is AuthTokensResponse {
+  return (
+    isAccessTokenResponse(value) &&
+    "refreshToken" in value &&
+    typeof (value as { refreshToken: unknown }).refreshToken === "string" &&
+    (value as { refreshToken: string }).refreshToken.length > 0
+  );
+}
+
+async function parseAuthTokensResponse(
+  response: Response,
+): Promise<AuthTokensResponse> {
+  let data: unknown;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError(502, "Invalid response");
+  }
+
+  if (!isAuthTokensResponse(data)) {
+    throw new ApiError(502, "Invalid response");
+  }
+
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+  };
 }
 
 /**
@@ -94,13 +129,13 @@ export async function exchangeAuthorizationCode(
 }
 
 /**
- * Asks Backend to issue a new access token from an HttpOnly refresh cookie.
+ * Asks Backend to rotate tokens from an HttpOnly refresh cookie.
  * Call only from Next.js Route Handlers. Pass the Cookie header explicitly;
  * server-side fetch does not forward the browser cookie jar.
  */
 export async function refreshAccessToken(
   refreshToken: string,
-): Promise<AccessTokenResponse> {
+): Promise<AuthTokensResponse> {
   const response = await fetch(buildApiUrl("/auth/refresh"), {
     method: "POST",
     headers: {
@@ -114,7 +149,7 @@ export async function refreshAccessToken(
     throw new ApiError(response.status, response.statusText);
   }
 
-  return parseAccessTokenResponse(response);
+  return parseAuthTokensResponse(response);
 }
 
 /**
