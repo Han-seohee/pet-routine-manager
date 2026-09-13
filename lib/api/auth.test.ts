@@ -62,19 +62,24 @@ describe("exchangeAuthorizationCode", () => {
 
 describe("refreshAccessToken", () => {
   it("forwards prm_refresh_token as a Cookie header to Backend /auth/refresh", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(jsonResponse({ accessToken: "new-access-token" }));
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        accessToken: "new-access-token",
+        refreshToken: "rotated-refresh-token",
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(refreshAccessToken("opaque-refresh-token")).resolves.toEqual({
       accessToken: "new-access-token",
+      refreshToken: "rotated-refresh-token",
     });
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const headers = new Headers(init.headers);
     expect(fetchMock.mock.calls[0][0]).toBe(`${API_BASE_URL}/auth/refresh`);
     expect(init.method).toBe("POST");
+    expect(init.body).toBeUndefined();
     expect(headers.get("Cookie")).toBe(
       `${REFRESH_TOKEN_COOKIE}=opaque-refresh-token`,
     );
@@ -89,6 +94,18 @@ describe("refreshAccessToken", () => {
     await expect(refreshAccessToken("invalid-refresh-token")).rejects.toMatchObject({
       name: "ApiError",
       status: 401,
+    } satisfies Partial<ApiError>);
+  });
+
+  it("throws 502 when Backend omits the rotated refresh token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ accessToken: "new-access-token" })),
+    );
+
+    await expect(refreshAccessToken("opaque-refresh-token")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 502,
     } satisfies Partial<ApiError>);
   });
 });
